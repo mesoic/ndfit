@@ -1,0 +1,15 @@
+NDFIT VERSION 0.0.3
+
+This is an n-dimensional curve fitter written in C python. It has many features including fit acceleration/deceleration (throttling) and convergence testing. The current version is experimental, but seems to be stable to this point in time. 
+
+INSTALL 
+
+sudo python setup.py install
+
+The fit function and error function are defined by the user, but the error function must always take the form of a residual Furthermore, there are no dependencies on other third party libraries (such as numpy and scipy), but numpy functions may be used in the definition of fit functions. Only the standard Python C API is used.  
+
+See test.py for testing the code, as well as an example of how to use it. 
+
+
+
+  
