@@ -33,7 +33,6 @@ static PyObject* ndfit_throttle_factor(PyObject* self, PyObject* args){
   Py_RETURN_NONE;
 }
 
-
 ///////////////////////////////////////////
 // List algebra methods needed for ndfit //
 ///////////////////////////////////////////
@@ -393,7 +392,6 @@ PyObject* ndfit_run(PyObject* self,PyObject *args, PyObject *kwds){
   ITERTOOLS = PyImport_ImportModule((char*)"itertools"); 
   PRODUCT = PyObject_GetAttrString(ITERTOOLS,(char*)"product");
   
-  PyObject* lattice;
   if(!strcmp(MODE,"short")){
     LATTICE = ndfit_permutatorshort(step,1.0);
   }
@@ -467,8 +465,6 @@ PyObject* ndfit_product(PyObject* self, PyObject* args){
       tmp = PyFloat_AsDouble(PyList_GetItem(a,i))*PyFloat_AsDouble(PyList_GetItem(b,i));
       PyList_SetItem(result,i,Py_BuildValue("d",tmp));
   }
-  Py_DECREF(a); 
-  Py_DECREF(b);
   return result;
 }
 
@@ -504,8 +500,6 @@ PyObject* ndfit_quotient(PyObject* self, PyObject* args){
       tmp = PyFloat_AsDouble(PyList_GetItem(a,i))/PyFloat_AsDouble(PyList_GetItem(b,i));
       PyList_SetItem(result,i,Py_BuildValue("d",tmp));
   }
-  Py_DECREF(a); 
-  Py_DECREF(b);
   return result;
 }
 
@@ -541,8 +535,6 @@ PyObject* ndfit_sum(PyObject* self, PyObject* args){
       tmp = PyFloat_AsDouble(PyList_GetItem(a,i))+PyFloat_AsDouble(PyList_GetItem(b,i));
       PyList_SetItem(result,i,Py_BuildValue("d",tmp));
   }
-  Py_DECREF(a); 
-  Py_DECREF(b);
   return result;
 }
 
@@ -569,8 +561,7 @@ PyObject* ndfit_difference(PyObject* self, PyObject* args){
      PyErr_SetString(ndfitError,"Lists must be the same size");
      return NULL;
   }
-
-  double tmp;
+   double tmp;
   Py_ssize_t i; 
   PyObject* result = PyList_New(sizea);
 
@@ -578,8 +569,88 @@ PyObject* ndfit_difference(PyObject* self, PyObject* args){
       tmp = PyFloat_AsDouble(PyList_GetItem(a,i))-PyFloat_AsDouble(PyList_GetItem(b,i));
       PyList_SetItem(result,i,Py_BuildValue("d",tmp));
   }
-  Py_DECREF(a); 
-  Py_DECREF(b);
+  return result;
+}
+
+PyObject* ndfit_derivative(PyObject* self, PyObject* args){
+
+  PyObject* a;
+  PyObject* b;
+
+  // Import lambda object
+  if(!PyArg_ParseTuple(args,"OO",&a,&b)){return NULL;}
+  if(!PyList_Check(a)){
+    PyErr_SetString(ndfitError,"Arguments must be lists");
+    return NULL;
+  }
+  if(!PyList_Check(b)){
+    PyErr_SetString(ndfitError,"Arguments must be lists");
+    return NULL;
+  }
+  
+  Py_ssize_t sizea = PyList_Size(a);
+  Py_ssize_t sizeb = PyList_Size(b);
+
+  Py_INCREF(a);
+  Py_INCREF(b);
+
+  if((int)sizea != (int)sizeb){
+     PyErr_SetString(ndfitError,"Lists must be the same size");
+     return NULL;
+  }
+  double deltay;
+  double deltax;
+  Py_ssize_t i;
+  PyObject* result = PyList_New(sizea);
+  for (i=0;i<sizea;i+=1){
+    // Take care of special cases where we are at the beginning 
+    // and end of the data set
+    if (i == 0){
+      deltay = PyFloat_AsDouble(PyList_GetItem(a,i+1))-PyFloat_AsDouble(PyList_GetItem(a,i));
+      deltay+=deltay;
+      deltax = PyFloat_AsDouble(PyList_GetItem(b,i+1))-PyFloat_AsDouble(PyList_GetItem(b,i));
+      deltax+=deltax;
+      PyList_SetItem(result,i,Py_BuildValue("d",(deltay)/(deltax)));
+    }
+    // Note these must be else if to avoid passing into the else
+    // block with i==0,1
+    else if (i == 1){
+      deltay = PyFloat_AsDouble(PyList_GetItem(a,i+1))-PyFloat_AsDouble(PyList_GetItem(a,i));
+      deltay+= PyFloat_AsDouble(PyList_GetItem(a,i))-PyFloat_AsDouble(PyList_GetItem(a,i-1));
+      deltax = PyFloat_AsDouble(PyList_GetItem(b,i+1))-PyFloat_AsDouble(PyList_GetItem(b,i));
+      deltax+= PyFloat_AsDouble(PyList_GetItem(b,i))-PyFloat_AsDouble(PyList_GetItem(b,i-1));
+      PyList_SetItem(result,i,Py_BuildValue("d",(deltay)/(deltax)));
+    }
+    else if  (i == (sizea-2)){
+      deltay = PyFloat_AsDouble(PyList_GetItem(a,i+1))-PyFloat_AsDouble(PyList_GetItem(a,i));
+      deltay+= PyFloat_AsDouble(PyList_GetItem(a,i))-PyFloat_AsDouble(PyList_GetItem(a,i-1));
+      deltax = PyFloat_AsDouble(PyList_GetItem(b,i+1))-PyFloat_AsDouble(PyList_GetItem(b,i));
+      deltax+= PyFloat_AsDouble(PyList_GetItem(b,i))-PyFloat_AsDouble(PyList_GetItem(b,i-1));
+      PyList_SetItem(result,i,Py_BuildValue("d",(deltay)/(deltax)));
+    }
+    else if (i == (sizea-1)){
+      deltay = PyFloat_AsDouble(PyList_GetItem(a,i))-PyFloat_AsDouble(PyList_GetItem(a,i-1));
+      deltay+=deltay;
+      deltax = PyFloat_AsDouble(PyList_GetItem(b,i))-PyFloat_AsDouble(PyList_GetItem(b,i-1));
+      deltax+=deltax;
+      PyList_SetItem(result,i,Py_BuildValue("d",(deltay)/(deltax)));
+    }
+    // deltax is always positive so we do not need to worry about 
+    // dividing by zero.
+    else {
+      deltay = PyFloat_AsDouble(PyList_GetItem(a,i+2))-PyFloat_AsDouble(PyList_GetItem(a,i+1));
+      deltay+= PyFloat_AsDouble(PyList_GetItem(a,i+1))-PyFloat_AsDouble(PyList_GetItem(a,i));
+      deltay+= PyFloat_AsDouble(PyList_GetItem(a,i))-PyFloat_AsDouble(PyList_GetItem(a,i-1));
+      deltay+= PyFloat_AsDouble(PyList_GetItem(a,i-1))-PyFloat_AsDouble(PyList_GetItem(a,i-2));
+
+      deltax = PyFloat_AsDouble(PyList_GetItem(b,i+2))-PyFloat_AsDouble(PyList_GetItem(b,i+1));
+      deltax+= PyFloat_AsDouble(PyList_GetItem(b,i+1))-PyFloat_AsDouble(PyList_GetItem(b,i));
+      deltax+= PyFloat_AsDouble(PyList_GetItem(b,i))-PyFloat_AsDouble(PyList_GetItem(b,i-1));
+      deltax+= PyFloat_AsDouble(PyList_GetItem(b,i-1))-PyFloat_AsDouble(PyList_GetItem(b,i-2));
+
+      PyList_SetItem(result,i,Py_BuildValue("d",(deltay)/(deltax)));
+    }
+  }
   return result;
 }
 
@@ -629,7 +700,7 @@ static PyMethodDef ndfit_methods[]={
   {"quotient",ndfit_quotient, METH_VARARGS, "external method to get elementwise quotient"},
   {"sum",ndfit_sum, METH_VARARGS, "external method to get elementwise sum"},
   {"difference",ndfit_difference, METH_VARARGS, "external method to get elementwise difference"},
-
+  {"derivative",ndfit_derivative, METH_VARARGS,"external method to calculate the discrete derivitive"},
   {NULL,NULL,0,NULL}, /* Sentinel */
 };
 

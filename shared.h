@@ -28,9 +28,7 @@ static inline PyObject* ndfit_getminimum(PyObject* list);
 static inline PyObject* ndfit_callfunc(PyObject* func, PyObject* values, PyObject* params);
 static PyObject* ndfit_maxdepth(PyObject* self, PyObject* args);
 static PyObject* ndfit_dotproduct(PyObject* a, PyObject* b);
-static PyObject* ndfit_dotdivide(PyObject* a, PyObject* b);
 static PyObject* ndfit_dotadd(PyObject* a, PyObject* b);
-static PyObject* ndfit_dotsubtract(PyObject* a, PyObject* b);
 static double ndfit_entropy(PyObject* callfunc, PyObject* data, PyObject* params);
 static PyObject* ndfit_permutatorshort(PyObject* step, double scale);
 static PyObject* ndfit_permutatorfull(PyObject* step, double scale);
@@ -43,6 +41,7 @@ PyObject* ndfit_product(PyObject* self, PyObject* args);
 PyObject* ndfit_quotient(PyObject* self, PyObject* args);
 PyObject* ndfit_sum(PyObject* self, PyObject* args);
 PyObject* ndfit_difference(PyObject* self, PyObject* args);
+PyObject* ndfit_derivative(PyObject* self, PyObject* args);
 PyObject* ndfit_functest(PyObject* self, PyObject* args);
 
 // Declaration of initialization function
