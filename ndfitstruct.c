@@ -1,4 +1,5 @@
 //An N-dimensional curve fitting tool written in C Python
+//GNU license applies to v0.3 including v0.3.x and later versions
 //Copyright (C) 2013  Michael Winters : micwinte@chalmers.se
 
 //This program is free software; you can redistribute it and/or
