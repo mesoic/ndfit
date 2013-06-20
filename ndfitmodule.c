@@ -1,5 +1,5 @@
-//An N-dimensional curve fitting written in C Python
-//Copyright (C) 2013  Michael Winters
+//An N-dimensional curve fitting tool written in C Python
+//Copyright (C) 2013  Michael Winters : micwinte@chalmers.se
 
 //This program is free software; you can redistribute it and/or
 //modify it under the terms of the GNU General Public License
