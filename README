@@ -1,4 +1,4 @@
-NDFIT VERSION 0.0.3
+NDFIT VERSION 0.3
 
 This is an n-dimensional curve fitter written in C python. It has many features including fit acceleration/deceleration (throttling) and convergence testing. The current version is experimental, but seems to be stable to this point in time. 
 
@@ -10,6 +10,23 @@ The fit function and error function are defined by the user, but the error funct
 
 See test.py for testing the code, as well as an example of how to use it. 
 
+LICENSE
 
+An N-dimensional curve fitting tool written in C Python
+GNU license applies to v0.3 including v0.3.x and later versions
+Copyright (C) 2013 Michael Winters : micwinte@chalmers.se
 
-  
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+
