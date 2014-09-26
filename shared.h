@@ -1,6 +1,6 @@
 //An N-dimensional curve fitting tool written in C Python
 //GNU license applies to v0.3 including v0.3.x and later versions
-//Copyright (C) 2013  Michael Winters : micwinte@chalmers.se
+//Copyright (C) 2014  Michael Winters : micwinte@chalmers.se
 
 //This program is free software; you can redistribute it and/or
 //modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@ EXTERN Py_ssize_t DIM;
 EXTERN Py_ssize_t LDIM; 
 EXTERN Py_ssize_t DATALEN;
 EXTERN PyObject* PLIST;
+EXTERN PyObject* CONSTS;
 EXTERN PyObject* LATTICE;
 EXTERN PyObject* THROTTLE = NULL;
 EXTERN char* MODE = NULL;
@@ -50,7 +51,7 @@ static PyObject* ndfit_dotadd(PyObject* a, PyObject* b);
 static double ndfit_entropy(PyObject* callfunc, PyObject* data, PyObject* params);
 static PyObject* ndfit_permutatorshort(PyObject* step, double scale);
 static PyObject* ndfit_permutatorfull(PyObject* step, double scale);
-static PyObject* ndfit_next(PyObject* callfunc, PyObject* data,PyObject* params,PyObject* lattice);
+static PyObject* ndfit_next(PyObject* callfunc, PyObject* data,PyObject* params, PyObject* lattice);
 PyObject* ndfit_recursive(PyObject* callfunc, PyObject* data, PyObject* params, PyObject* step, PyObject* lattice);
 PyObject* ndfit_run(PyObject* self,PyObject *args, PyObject *kwds);
 
@@ -76,6 +77,7 @@ typedef struct ndFit{
   PyObject_HEAD
   PyObject* data;
   PyObject* pList;
+  PyObject* consts;
   PyObject* fitfunc;
   PyObject* errfunc;
   PyObject* lattice;

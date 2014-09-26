@@ -1,6 +1,6 @@
 //An N-dimensional curve fitting tool written in C Python
 //GNU license applies to v0.3 including v0.3.x and later versions
-//Copyright (C) 2013  Michael Winters : micwinte@chalmers.se
+//Copyright (C) 2014  Michael Winters : micwinte@chalmers.se
 
 //This program is free software; you can redistribute it and/or
 //modify it under the terms of the GNU General Public License
@@ -35,7 +35,7 @@ static inline PyObject* ndfit_getminimum(PyObject* list){
   PyList_Sort(list); return PyList_GetItem(list,0);}
 
 static inline PyObject* ndfit_callfunc(PyObject* func, PyObject* values, PyObject* params){
-  return PyObject_CallFunctionObjArgs(func,values,params,NULL);}
+  return PyObject_CallFunctionObjArgs(func,values,params,CONSTS,NULL);}
 
 // Setters for maxdepth and convergence
 static PyObject* ndfit_maxdepth(PyObject* self, PyObject* args){
@@ -96,7 +96,7 @@ static double ndfit_entropy(PyObject* callfunc, PyObject* data, PyObject* params
   // Perform Loop to calculate residuals
   for(i=0;i<DATALEN;i+=1){
     Py_INCREF(data);
-    values = ndfit_callfunc(callfunc,PyList_GetItem(data,i),params);
+    values = ndfit_callfunc(callfunc,PyList_GetItem(data,i), params);
     PyList_SetItem(res_list,i,values);
     Py_DECREF(data);
   }
@@ -236,7 +236,7 @@ static PyObject* ndfit_permutatorfull(PyObject* step, double scale){
 //////////////////////////////////////////////////
 // A method to calculate the recursive step one //
 //////////////////////////////////////////////////
-static PyObject* ndfit_next(PyObject* callfunc,PyObject* data,PyObject* params,PyObject* lattice){
+static PyObject* ndfit_next(PyObject* callfunc,PyObject* data,PyObject* params, PyObject* lattice){
   
   Py_INCREF(callfunc); 
   Py_INCREF(data);
@@ -255,6 +255,7 @@ static PyObject* ndfit_next(PyObject* callfunc,PyObject* data,PyObject* params,P
  
     point = ndfit_dotadd(PyList_GetItem(lattice,i),params);
     entropy = Py_BuildValue("d",ndfit_entropy(callfunc, data, point));
+    //printf("Entropy is: %f\n", PyFloat_AsDouble(entropy) );
 
     Py_INCREF(entropy);
     Py_INCREF(point);
@@ -287,7 +288,7 @@ PyObject* ndfit_recursive(PyObject* callfunc, PyObject* data, PyObject* params,
   Py_INCREF(PLIST);
   double entropy = PyFloat_AsDouble(PyTuple_GetItem(next,0));
   double check = PyFloat_AsDouble(PyTuple_GetItem(tmp,0));
-  
+    
   // Scale the lattice appropriately if throrrling is on
   if (entropy > CONV && (int)PyObject_IsTrue(THROTTLE)){ 
     if(!strcmp(MODE,"short")){
@@ -343,9 +344,10 @@ PyObject* ndfit_run(PyObject* self,PyObject *args, PyObject *kwds){
   PyObject* params;
   PyObject* step;
 
-  static char *kwlist[] = {"fitfunc","errfunc","data","params","step","mode","throttle",NULL};
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOO|sO", kwlist, 
-				   &fitfunc,&callfunc,&data,&params,
+  static char *kwlist[] = {"fitfunc","errfunc","data","params","consts","step","mode","throttle",NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOO|sO", kwlist, 
+				   &fitfunc,&callfunc,
+				   &data,&params,&CONSTS,
 				   &step,&MODE,&THROTTLE)){return NULL;}
 
   // Read in the data and errr check the input
@@ -357,11 +359,18 @@ PyObject* ndfit_run(PyObject* self,PyObject *args, PyObject *kwds){
     PyErr_SetString(ndfitError,"Params is not a list");
     return NULL;
   }
+  if(!PyList_Check(CONSTS)){
+    PyErr_SetString(ndfitError,"Step is not a list");
+    return NULL;
+  }
+  Py_INCREF(CONSTS);
+
   if(!PyList_Check(step)){
     PyErr_SetString(ndfitError,"Step is not a list");
     return NULL;
   }
- // Check for lambdas
+
+  // Check for lambdas
   if(!PyCallable_Check(fitfunc)){
     PyErr_SetString(ndfitError,"Invalid Fit Function");
     return NULL;   
@@ -376,7 +385,7 @@ PyObject* ndfit_run(PyObject* self,PyObject *args, PyObject *kwds){
   Py_INCREF(callfunc);
   Py_INCREF(data);
   Py_INCREF(params);
-
+  Py_INCREF(step);
 
   // Test to see if the error function is even callable with the 
   // data provided. This prevents a segmentation fault with bad functions
@@ -391,6 +400,7 @@ PyObject* ndfit_run(PyObject* self,PyObject *args, PyObject *kwds){
     THROTTLE = Py_False;
   }
   Py_INCREF(THROTTLE);
+
 
   // Set max depth and convergence to default values if not set already
   if(!CONV){CONV = 0.1;}
@@ -430,7 +440,7 @@ PyObject* ndfit_run(PyObject* self,PyObject *args, PyObject *kwds){
 
   // Build the final values
   PLIST = PyList_GetSlice(PLIST,0,DEPTH-1);
-  PyObject* argList = Py_BuildValue("OOOOO",data,PLIST,fitfunc,callfunc,LATTICE);
+  PyObject* argList = Py_BuildValue("OOOOOO",data,PLIST,CONSTS,fitfunc,callfunc,LATTICE);
   PyObject* ndfobj = PyObject_CallObject((PyObject*)&ndFitType,argList);
   Py_DECREF(argList);
 
@@ -678,10 +688,11 @@ PyObject* ndfit_functest(PyObject* self, PyObject* args){
   PyObject* func;
   PyObject* point;
   PyObject* params;
+  PyObject* consts;
   PyObject* result;
   
   // Import lambda object
-  if(!PyArg_ParseTuple(args,"OOO",&func,&point,&params)){return NULL;}
+  if(!PyArg_ParseTuple(args,"OOOO",&func,&point,&params,&consts)){return NULL;}
 
   if(!PyCallable_Check(func)){
     PyErr_SetString(ndfitError,"Invalid Function");

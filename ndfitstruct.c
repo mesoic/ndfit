@@ -1,6 +1,6 @@
 //An N-dimensional curve fitting tool written in C Python
 //GNU license applies to v0.3 including v0.3.x and later versions
-//Copyright (C) 2013  Michael Winters : micwinte@chalmers.se
+//Copyright (C) 2014  Michael Winters : micwinte@chalmers.se
 
 //This program is free software; you can redistribute it and/or
 //modify it under the terms of the GNU General Public License
@@ -15,9 +15,6 @@
 //You should have received a copy of the GNU General Public License
 //along with this program; if not, write to the Free Software
 //Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-
-
-
 #include <Python.h>
 #include <structmember.h>
 
@@ -36,6 +33,7 @@ typedef struct ndfit{
   PyObject_HEAD
   PyObject* data;
   PyObject* pList;
+  PyObject* consts;
   PyObject* fitfunc;
   PyObject* errfunc;
   PyObject* lattice;
@@ -53,6 +51,7 @@ void ndFit_dealloc(ndFit* self){
   // use XDECREF because first and last could be NULL
   Py_XDECREF(self->data);
   Py_XDECREF(self->pList);
+  Py_XDECREF(self->consts);
   Py_XDECREF(self->fitfunc); 
   Py_XDECREF(self->errfunc);
   Py_XDECREF(self->lattice);
@@ -72,14 +71,16 @@ PyObject* ndFit_new(PyTypeObject* type, PyObject* args, PyObject* kwds){
   if(self!=NULL){
     
     // Create empty lists and none objects for the functions
-    self->data  = PyList_New(empty);
-    self->pList = PyList_New(empty);
+    self->data    = PyList_New(empty);
+    self->pList   = PyList_New(empty);
+    self->consts  = PyList_New(empty);
     self->fitfunc = Py_None;            
     self->errfunc = Py_None;
     self->lattice = Py_None;
 
     if (self->data == NULL){Py_DECREF(self);return NULL;}
     if (self->pList == NULL){Py_DECREF(self);return NULL;}
+    if (self->consts == NULL){Py_DECREF(self);return NULL;}
     if (self->fitfunc == NULL){Py_DECREF(self);return NULL;}
     if (self->errfunc == NULL){Py_DECREF(self);return NULL;}
     if (self->lattice == NULL){Py_DECREF(self);return NULL;}
@@ -94,15 +95,17 @@ int ndFit_init(ndFit* self,PyObject* args){
 
   PyObject* data  = NULL;
   PyObject* pList = NULL;
+  PyObject* consts = NULL;
   PyObject* fitfunc = NULL; 
   PyObject* errfunc = NULL;
   PyObject* lattice = NULL;
 
   PyObject* tmp;
-  if (!PyArg_ParseTuple(args,"OOOOO",&data,&pList,&fitfunc,&errfunc,&lattice)){return -1;}
+  if (!PyArg_ParseTuple(args,"OOOOOO",&data,&pList,&consts,&fitfunc,&errfunc,&lattice)){return -1;}
 
   if (data) {tmp=self->data; Py_INCREF(data); self->data = data; Py_XDECREF(tmp);}
   if (data) {tmp=self->pList; Py_INCREF(pList); self->pList = pList; Py_XDECREF(tmp);}
+  if (data) {tmp=self->consts; Py_INCREF(consts); self->consts = consts; Py_XDECREF(tmp);}
   if (data) {tmp=self->fitfunc; Py_INCREF(fitfunc); self->fitfunc = fitfunc; Py_XDECREF(tmp);}
   if (data) {tmp=self->errfunc; Py_INCREF(errfunc); self->errfunc = errfunc; Py_XDECREF(tmp);}
   if (data) {tmp=self->lattice; Py_INCREF(lattice); self->lattice = lattice; Py_XDECREF(tmp);}
@@ -116,6 +119,7 @@ int ndFit_init(ndFit* self,PyObject* args){
 PyMemberDef ndFit_members[] = {
   {"data",T_OBJECT_EX,offsetof(ndFit,data),0,"input data"},
   {"pList",T_OBJECT_EX,offsetof(ndFit,pList),0,"parameter list [entropy,(params)]"},
+  {"consts",T_OBJECT_EX,offsetof(ndFit,consts),0,"constant parameter list [consts]]"},
   {"fitfunc",T_OBJECT_EX,offsetof(ndFit,fitfunc),0,"fit function used"},
   {"errfunc",T_OBJECT_EX,offsetof(ndFit,errfunc),0,"error function used"},
   {"lattice",T_OBJECT_EX,offsetof(ndFit,lattice),0,"fit lattice for error checking"},
@@ -149,32 +153,8 @@ static PyObject* ndFit_getentropy(ndFit* self){
   for(iter = 0; iter<size; iter+=1){ 
     tmp = PyList_GetItem(self->pList,iter);
     PyList_SetItem(list,iter,PyTuple_GetItem(tmp,0));
-    Py_DECREF(self->pList);
     Py_DECREF(tmp);
   }
-  Py_DECREF(tmp);
-  return list;
-}
-
-// Method to get all of the parameters
-static PyObject* ndFit_getparams(ndFit* self){
-
-  
-  Py_ssize_t i; 
-  Py_ssize_t size = PyList_Size(self->pList);
-  
-  PyObject* list;
-  list = PyList_New(size);
-  Py_INCREF(list);
-
-  PyObject* tmp; 
-  for(i = 0; i<size; i+=1){ 
-    tmp = PyList_GetItem(self->pList,i);
-    PyList_SetItem(list,i,PyTuple_GetItem(tmp,1));
-    Py_DECREF(self->pList);
-    Py_DECREF(tmp);
-  }
-  Py_DECREF(tmp);
   return list;
 }
 
@@ -182,40 +162,39 @@ static PyObject* ndFit_buildcurve(ndFit* self, PyObject* args, PyObject* kwds){
   
   // Import the values
   PyObject* values;
-  
-  static char *kwlist[] = {"values", NULL};
-  if (!PyArg_ParseTupleAndKeywords(args,kwds,"O",kwlist,&values)){return -1;} 
+  if(!PyArg_ParseTuple(args,"O",&values)){return NULL;}
+
+  PyObject* result; 
+  PyObject* params;
+  Py_ssize_t sizep = PyList_Size(self->pList);
+  result = PyList_GetItem(self->pList,sizep-1);
+  params = PyTuple_GetItem(result,1);
+  Py_INCREF(result);
+  Py_INCREF(params);
 
   if(!PyList_Check(values)){
     PyErr_SetString(ndfitError,"Data is not a list: please remember to zip your lists");
     return NULL;
   }
 
-  // Get the optimized parameters
-  PyObject* result; 
-  Py_ssize_t sizep = PyList_Size(self->pList);
-  result = PyList_GetItem(self->pList,sizep-1);
-  Py_INCREF(result);
-
-  PyObject* params = PyTuple_GetItem(result,1);
-  Py_INCREF(params);
-  
-  Py_ssize_t i;
   Py_ssize_t size = PyList_Size(values);
   PyObject *curve = PyList_New(size);
  
-  PyObject* tmp = NULL; 
-  PyObject* pt = NULL;
+  int i = 0; 
+  double v;
+  Py_ssize_t len = 1;
+  Py_ssize_t pos = 0;
+  PyObject* tmp  = PyList_New(len);
+ 
+  PyObject* pt;
 
-  Py_XINCREF(tmp);
-  Py_XINCREF(pt);
+  Py_INCREF(tmp);
   for (i=0;i<size;i+=1){
-    tmp = PyList_GetItem(values,i);
-    pt = PyObject_CallFunctionObjArgs(self->fitfunc,tmp,params,NULL);
+    v =  PyFloat_AsDouble( PyList_GetItem(values,i));
+    PyList_SetItem(tmp, pos ,Py_BuildValue("f",v));
+    pt = PyObject_CallFunctionObjArgs(self->fitfunc,tmp,params,self->consts,NULL);
     PyList_SetItem(curve,i,pt);
   }
-  Py_DECREF(values);
-  Py_DECREF(params);
   return curve;
 }
 
@@ -226,8 +205,7 @@ static PyObject* ndFit_buildcurve(ndFit* self, PyObject* args, PyObject* kwds){
 PyMethodDef ndFit_methods[] = {
   {"getresult",(PyCFunction)ndFit_getresult,METH_NOARGS,0,"return the final result"},
   {"getentropy",(PyCFunction)ndFit_getentropy,METH_NOARGS,0,"return a list of the entropy values"},
-  {"getparams",(PyCFunction)ndFit_getentropy,METH_NOARGS,0,"return a list of the entropy values"},
-  {"buildcurve",(PyCFunction)ndFit_buildcurve,METH_VARARGS|METH_KEYWORDS,0,"return a list of the entropy values"},
+  {"buildcurve",(PyCFunction)ndFit_buildcurve,METH_VARARGS|METH_KEYWORDS,0,"build the optimized curve"},
   {NULL}  /* Sentinel */
 };
 
