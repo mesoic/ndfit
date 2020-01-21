@@ -84,13 +84,10 @@ typedef struct ndFit{
 } ndFit;
 #endif
 
+
 PyTypeObject ndFitType;
 PyMethodDef ndFit_methods;
 PyMemberDef ndFit_members;
 
 void ndFit_dealloc(ndFit* self);
 PyObject* ndFit_new(PyTypeObject* type, PyObject* args, PyObject* kwds);
-
-
-
-
