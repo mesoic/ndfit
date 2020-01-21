@@ -22,7 +22,7 @@
 #include <math.h>
 
 #define EXTERN
-#include "shared.h"
+#include "../inc/shared.h"
 
 // Python exception obj
 static PyObject* ndfitError;
